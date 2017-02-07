@@ -1,3 +1,7 @@
+<p align="center">
+Warning: You're looking at an experimental branch exploring how to incorporate recent work within Facebook into Relay. This branch is unlikely to be merged as-is.
+</p>
+
 # [Relay](https://facebook.github.io/relay/) [![Build Status](https://travis-ci.org/facebook/relay.svg?branch=master)](https://travis-ci.org/facebook/relay) [![npm version](https://badge.fury.io/js/react-relay.svg)](http://badge.fury.io/js/react-relay)
 
 Relay is a JavaScript framework for building data-driven React applications.
