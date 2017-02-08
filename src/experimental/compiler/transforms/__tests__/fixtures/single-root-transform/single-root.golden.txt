@@ -1,0 +1,17 @@
+query ViewerQuery {
+  viewer {
+    ...ViewerFragment0
+  }
+}
+
+fragment ViewerFragment0 on Viewer {
+  ...ViewerFragment2
+}
+
+fragment ViewerFragment2 on Viewer {
+  actor {
+    ... on User {
+      id
+    }
+  }
+}

@@ -1,0 +1,42 @@
+exports[`RelayResponseNormalizer normalizes queries with "handle" fields 1`] = `
+Object {
+  "4": Object {
+    "__id": "4",
+    "__typename": "User",
+    "friends{\"first\":1}": Object {
+      "__ref": "client:4:friends{\"first\":1}",
+    },
+    "id": "4",
+  },
+  "client:4:friends{\"first\":1}": Object {
+    "__id": "client:4:friends{\"first\":1}",
+    "__typename": "FriendsConnection",
+    "edges": Object {
+      "__refs": Array [
+        "client:4:friends{\"first\":1}:edges:0",
+      ],
+    },
+  },
+  "client:4:friends{\"first\":1}:edges:0": Object {
+    "__id": "client:4:friends{\"first\":1}:edges:0",
+    "__typename": "FriendsEdge",
+    "cursor": "cursor:bestFriends",
+    "node": Object {
+      "__ref": "pet",
+    },
+  },
+  "client:root": Object {
+    "__id": "client:root",
+    "__typename": "__Root",
+    "node{\"id\":\"1\"}": Object {
+      "__ref": "4",
+    },
+  },
+  "pet": Object {
+    "__id": "pet",
+    "__typename": "User",
+    "id": "pet",
+    "name": "Beast",
+  },
+}
+`;

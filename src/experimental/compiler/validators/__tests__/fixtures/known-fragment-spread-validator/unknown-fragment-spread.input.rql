@@ -1,0 +1,4 @@
+fragment ParentUserFragment on User {
+  id
+  ...UnknownUserFragment
+}

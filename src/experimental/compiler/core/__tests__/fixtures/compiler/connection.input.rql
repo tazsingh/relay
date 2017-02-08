@@ -1,0 +1,23 @@
+query NodeQuery($id: ID!) {
+  node(id: $id) {
+    id
+    ... on Story {
+      comments(first: 10) @connection(handle: "storyComments") {
+        edges {
+          node {
+            actor {
+              name
+              friends(first: 10) @connection(handle: "authorFriends") {
+                edges {
+                  node {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

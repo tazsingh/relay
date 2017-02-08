@@ -1,0 +1,12 @@
+query NodeQuery(
+  $id: ID!
+) {
+  node(id: $id) {
+    id
+    ...NodeFragment
+  }
+}
+
+fragment NodeFragment on Node {
+  aliased_id: id
+}

@@ -1,0 +1,25 @@
+[
+  {
+    "kind": "Fragment",
+    "directives": [],
+    "metadata": null,
+    "name": "ScalarHandleField",
+    "selections": [
+      {
+        "kind": "ScalarField",
+        "alias": null,
+        "args": [],
+        "directives": [],
+        "handles": [
+          "clientName",
+          "clientName2"
+        ],
+        "metadata": null,
+        "name": "name",
+        "type": "String"
+      }
+    ],
+    "type": "User",
+    "argumentDefinitions": []
+  }
+]

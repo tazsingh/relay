@@ -1,0 +1,8 @@
+fragment ParentUserFragment on User {
+  id
+  ...ChildUserFragment
+}
+
+fragment ChildUserFragment on User {
+  id
+}
