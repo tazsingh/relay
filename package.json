@@ -50,6 +50,7 @@
     "eslint-plugin-babel": "^3.3.0",
     "eslint-plugin-flowtype": "2.30.0",
     "eslint-plugin-react": "^5.2.2",
+    "event-stream": "3.3.4",
     "fbjs-scripts": "^0.7.1",
     "flow-bin": "^0.38.0",
     "graphql": "0.9.1",

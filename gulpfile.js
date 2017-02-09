@@ -37,6 +37,7 @@ const babelOptions = require('./scripts/getBabelOptions')({
   ],
 });
 const del = require('del');
+const es = require('event-stream');
 const derequire = require('gulp-derequire');
 const flatten = require('gulp-flatten');
 const gulp = require('gulp');
@@ -107,9 +108,21 @@ const buildDist = function(opts) {
   });
 };
 
+const builds = [
+  {
+    entry: 'lib/Relay.js',
+    output: 'relay.js',
+    outputMin: 'relay.min.js',
+  },
+  {
+    entry: 'lib/RelayExperimental.js',
+    output: 'relay-experimental.js',
+    outputMin: 'relay-experimental.min.js',
+  },
+];
+
 const paths = {
   dist: 'dist',
-  entry: 'lib/Relay.js',
   lib: 'lib',
   src: [
     '*src/**/*.js',
@@ -131,30 +144,34 @@ gulp.task('modules', function() {
 });
 
 gulp.task('dist', ['modules'], function() {
-  const distOpts = {
-    debug: true,
-    output: 'relay.js',
-  };
-  return gulp.src(paths.entry)
-    .pipe(buildDist(distOpts))
-    .pipe(derequire())
-    .pipe(header(DEVELOPMENT_HEADER, {
-      version: process.env.npm_package_version,
-    }))
-    .pipe(gulp.dest(paths.dist));
+  return es.merge(
+    builds.map(build =>
+      gulp.src(build.entry)
+        .pipe(buildDist({
+          debug: true,
+          output: build.output
+        }))
+        .pipe(derequire())
+        .pipe(header(DEVELOPMENT_HEADER, {
+          version: process.env.npm_package_version,
+        }))
+    )
+  ).pipe(gulp.dest(paths.dist));
 });
 
 gulp.task('dist:min', ['modules'], function() {
-  const distOpts = {
-    debug: false,
-    output: 'relay.min.js',
-  };
-  return gulp.src(paths.entry)
-    .pipe(buildDist(distOpts))
-    .pipe(header(PRODUCTION_HEADER, {
-      version: process.env.npm_package_version,
-    }))
-    .pipe(gulp.dest(paths.dist));
+  return es.merge(
+    builds.map(build =>
+      gulp.src(build.entry)
+        .pipe(buildDist({
+          debug: false,
+          output: build.outputMin
+        }))
+        .pipe(header(PRODUCTION_HEADER, {
+          version: process.env.npm_package_version,
+        }))
+    )
+  ).pipe(gulp.dest(paths.dist));
 });
 
 gulp.task('website:check-version', function(cb) {
