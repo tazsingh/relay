@@ -11,14 +11,7 @@
 
 'use strict';
 
-const invariant = require('invariant');
-
-const {
-  getRelayLegacyEnvironment,
-  getRelayStaticEnvironment,
-} = require('RelayCompatEnvironment');
-
-import type {CompatContext} from 'RelayCompatTypes';
+import type {RelayEnvironmentInterface} from 'RelayEnvironment';
 import type {CacheConfig} from 'RelayNetworkTypes';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {SelectorData} from 'RelayStoreTypes';
@@ -33,17 +26,11 @@ import type {Variables} from 'RelayTypes';
  * Most product code should use a Renderer or Container.
  */
 function fetchRelayStaticQuery(
-  context: CompatContext,
+  environment: RelayEnvironmentInterface,
   taggedNode: GraphQLTaggedNode,
   variables: Variables,
   cacheConfig?: ?CacheConfig,
 ): Promise<?SelectorData> {
-  const environment = getRelayStaticEnvironment(context) || getRelayLegacyEnvironment(context);
-  invariant(
-    environment,
-    'fetchRelayStaticQuery: Expected a valid Relay environment, got `%s`.',
-    context,
-  );
   const {
     createOperationSelector,
     getOperation,
