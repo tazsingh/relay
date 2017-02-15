@@ -12,8 +12,6 @@
 
 'use strict';
 
-const RelayGraphQLTagMap = require('RelayGraphQLTagMap');
-
 const invariant = require('invariant');
 
 import type {
@@ -30,14 +28,6 @@ export type GraphQLTaggedNode = {
   relay: () => ConcreteFragmentDefinition | ConcreteOperationDefinition,
   relayExperimental: () => ConcreteFragment | ConcreteBatch,
 };
-
-/**
- * A map used to memoize the results of executing the Relay 2 functions from
- * graphql`...` tagged expressions. Memoization allows the framework to use
- * object equality checks to compare fragments (useful, for example, when
- * comparing two `Selector`s to see if they select the same data).
- */
-const nodeMap = new RelayGraphQLTagMap();
 
 /**
  * Runtime function to correspond to the `graphql` tagged template function.
@@ -64,18 +54,19 @@ graphql.experimental = function(): GraphQLTaggedNode {
   );
 };
 
+function getNode(taggedNode) {
+  const fn = taggedNode.relayExperimental;
+  // Support for legacy raw nodes (used in test mock)
+  if (typeof fn !== 'function') {
+    return (taggedNode: any);
+  }
+  return fn();
+}
+
 function getFragment(
   taggedNode: GraphQLTaggedNode,
 ): ConcreteFragment {
-  let fragment = nodeMap.get(taggedNode);
-  if (fragment == null) {
-    // TODO: unify tag output
-    const fn = taggedNode.relayExperimental;
-    fragment = fn != null ?
-      fn() :
-      (taggedNode: any); // support legacy tags that output raw nodes
-    nodeMap.set(taggedNode, fragment);
-  }
+  const fragment = getNode(taggedNode);
   invariant(
     typeof fragment === 'object' && fragment !== null && fragment.kind === 'Fragment',
     'RelayStaticGraphQLTag: Expected a fragment, got `%s`.',
@@ -87,15 +78,7 @@ function getFragment(
 function getOperation(
   taggedNode: GraphQLTaggedNode,
 ): ConcreteBatch {
-  let operation = nodeMap.get(taggedNode);
-  if (operation == null) {
-    // TODO: unify tag output
-    const fn = taggedNode.relayExperimental;
-    operation = fn != null ?
-      fn() :
-      (taggedNode: any); // support legacy tags that output raw nodes
-    nodeMap.set(taggedNode, operation);
-  }
+  const operation = getNode(taggedNode);
   invariant(
     typeof operation === 'object' && operation !== null && operation.kind === 'Batch',
     'RelayStaticGraphQLTag: Expected an operation, got `%s`.',

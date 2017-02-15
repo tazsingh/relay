@@ -133,6 +133,10 @@ function buildCompatContainer<TBase: ReactClass<*>>(
   ContainerConstructor.hasFragment = name => fragmentSpec.hasOwnProperty(name);
   ContainerConstructor.hasVariable = hasVariable;
 
+  // Create a back-reference from the Component to the Container for cases
+  // where a Legacy Component might refer to itself, expecting a Container.
+  ComponentClass.__container__ = ContainerConstructor;
+
   return (ContainerConstructor: any);
 }
 

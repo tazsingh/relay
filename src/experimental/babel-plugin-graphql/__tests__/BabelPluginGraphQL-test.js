@@ -30,6 +30,7 @@ describe('BabelPluginGraphQL', () => {
         return babel.transform(text, {
           plugins: [plugin],
           compact: false,
+          parserOpts: {plugins: ['jsx']},
         }).code;
       } catch (e) {
         return 'ERROR:\n\n' + e;

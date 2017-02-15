@@ -95,8 +95,10 @@ function create() {
                   `graphql tag referenced by the property ${objPropName}.`
                 );
               }
-              return path.replaceWith(
-                createFragmentConcreteNode(t, mainDefinition)
+              return replaceMemoized(
+                t,
+                path,
+                createFragmentConcreteNode(t, path, mainDefinition)
               );
             }
 
@@ -110,9 +112,9 @@ function create() {
               }
 
               const [, propName] = getFragmentNameParts(definition.name.value);
-              nodeMap[propName] = createFragmentConcreteNode(t, definition);
+              nodeMap[propName] = createFragmentConcreteNode(t, path, definition);
             }
-            return path.replaceWith(createObject(t, nodeMap));
+            return replaceMemoized(t, path, createObject(t, nodeMap));
           }
 
           if (mainDefinition.kind === 'OperationDefinition') {
@@ -122,9 +124,10 @@ function create() {
                 '(query, mutation, or subscription) per graphql tag.'
               );
             }
-
-            return path.replaceWith(
-              createOperationConcreteNode(t, mainDefinition)
+            return replaceMemoized(
+              t,
+              path,
+              createOperationConcreteNode(t, path, mainDefinition)
             );
           }
 
@@ -138,6 +141,22 @@ function create() {
   };
 }
 
+function replaceMemoized(t, path, ast) {
+  let topScope = path.scope;
+  while (topScope.parent) {
+    topScope = topScope.parent;
+  }
+
+  if (path.scope === topScope) {
+    path.replaceWith(ast);
+  } else {
+    const id = topScope.generateDeclaredUidIdentifier('graphql');
+    path.replaceWith(
+      t.logicalExpression('||', id, t.assignmentExpression('=', id, ast))
+    );
+  }
+}
+
 function getAssignedObjectPropertyName(t, path) {
   let property = path;
   while (property) {
@@ -148,7 +167,7 @@ function getAssignedObjectPropertyName(t, path) {
   }
 }
 
-function createFragmentConcreteNode(t, definition) {
+function createFragmentConcreteNode(t, path, definition) {
   const definitionName = definition.name.value;
 
   const {
@@ -157,7 +176,7 @@ function createFragmentConcreteNode(t, definition) {
     variables,
     argumentDefinitions
   } = createLegacyAST(t, definition);
-  const substitutions = createSubstitutionsForFragmentSpreads(t, fragments);
+  const substitutions = createSubstitutionsForFragmentSpreads(t, path, fragments);
 
   const transformedAST = createObject(t, {
     kind: t.stringLiteral('FragmentDefinition'),
@@ -177,10 +196,10 @@ function createFragmentConcreteNode(t, definition) {
   );
 }
 
-function createOperationConcreteNode(t, definition) {
+function createOperationConcreteNode(t, path, definition) {
   const definitionName = definition.name.value;
   const {legacyAST, fragments} = createLegacyAST(t, definition);
-  const substitutions = createSubstitutionsForFragmentSpreads(t, fragments);
+  const substitutions = createSubstitutionsForFragmentSpreads(t, path, fragments);
   const nodeAST = legacyAST.operation === 'query' ?
     createFragmentForOperation(t, legacyAST) :
     createRelayQLTemplate(t, legacyAST);
@@ -477,31 +496,63 @@ function getFragmentNameParts(fragmentName) {
   return [ module, propName ];
 }
 
-function createSubstitutionsForFragmentSpreads(t, fragments) {
+function createSubstitutionsForFragmentSpreads(t, path, fragments) {
   return Object.keys(fragments).map(varName => {
     const fragment = fragments[varName];
     const [module, propName] = getFragmentNameParts(fragment.name);
     return t.variableDeclarator(
       t.identifier(varName),
-      createGetFragmentCall(t, module, propName, fragment.args)
+      createGetFragmentCall(t, path, module, propName, fragment.args)
     );
   });
 }
 
-function createGetFragmentCall(t, module, propName, fragmentArguments) {
+function createGetFragmentCall(t, path, module, propName, fragmentArguments) {
   const args = [t.stringLiteral(propName)];
 
   if (fragmentArguments) {
     args.push(fragmentArguments);
   }
 
+  // If "module" is defined locally, then it's unsafe to assume it's a
+  // container. It might be a bound reference to the React class itself.
+  // To be safe, when defined locally, always check the __container__ property
+  // first.
+  const container = isDefinedLocally(path, module) ?
+    t.logicalExpression('||',
+      // __container__ is defined via ReactRelayCompatContainerBuilder.
+      t.memberExpression(t.identifier(module), t.identifier('__container__')),
+      t.identifier(module)
+    ) :
+    t.identifier(module);
+
   return t.callExpression(
-    t.memberExpression(
-      t.identifier(module),
-      t.identifier('getFragment')
-    ),
+    t.memberExpression(container, t.identifier('getFragment')),
     args
   );
+}
+
+function isDefinedLocally(path, name) {
+  const binding = path.scope.getBinding(name);
+  if (!binding) {
+    return false;
+  }
+
+  // Binding comes from import.
+  if (binding.kind === 'module') {
+    return false;
+  }
+
+  // Binding comes from require.
+  if (
+    binding.path.isVariableDeclarator() &&
+    binding.path.get('init.callee').isIdentifier({name: 'require'})
+  ) {
+    return false;
+  }
+
+  // Otherwise, defined locally.
+  return true;
 }
 
 function validateTag(tagName, text) {
