@@ -16,7 +16,6 @@ const GraphQL = require('graphql');
 const RelayParser = require('RelayParser');
 const RelayValidator = require('RelayValidator');
 
-const idx = require('idx');
 const immutable = require('immutable');
 const invariant = require('invariant');
 
@@ -89,7 +88,7 @@ class RelayCompilerContext {
       RelayValidator.validate(ast, schema, RelayValidator.LOCAL_RULES);
     } catch (e) {
       const errorMessages = [];
-      const text = idx(ast, _ => _.loc.source.body);
+      const text = ast.loc && ast.loc.source.body;
       if (e.validationErrors && text) {
         const sourceLines = text.split('\n');
         e.validationErrors.forEach(function (formattedError) {
