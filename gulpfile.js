@@ -24,15 +24,27 @@ const babelOptions = require('./scripts/getBabelOptions')({
     'babel-runtime/core-js/array/from': 'babel-runtime/core-js/array/from',
     'babel-runtime/core-js/object/freeze': 'babel-runtime/core-js/object/freeze',
     'babel-runtime/core-js/object/is-frozen': 'babel-runtime/core-js/object/is-frozen',
+    'babel-runtime/core-js/set': 'babel-runtime/core-js/set',
     'babel-runtime/core-js/map': 'babel-runtime/core-js/map',
     'babel-runtime/core-js/weak-map': 'babel-runtime/core-js/weak-map',
     'babel-runtime/helpers/defineProperty': 'babel-runtime/helpers/defineProperty',
+    'babel-runtime/helpers/asyncToGenerator': 'babel-runtime/helpers/asyncToGenerator',
     'React': 'react',
     'ReactDOM': 'react-dom',
     'ReactNative': 'react-native',
     'StaticContainer.react': 'react-static-container',
+    'babylon': 'babylon',
+    'fb-watchman': 'fb-watchman',
+    'graphql': 'graphql',
+    'crypto': 'crypto',
+    'fs': 'fs',
+    'net': 'net',
+    'child_process': 'child_process',
+    'path': 'path',
+    'util': 'util',
   },
   plugins: [
+    'transform-async-to-generator',
     'transform-runtime',
   ],
 });
@@ -65,29 +77,32 @@ const PRODUCTION_HEADER = [
   ' */',
 ].join('\n') + '\n';
 
-const buildDist = function(opts) {
+const buildDist = function(opts, isProduction) {
   const webpackOpts = {
-    debug: opts.debug,
-    externals: {
-      'react': 'React',
-      'react-dom': 'ReactDOM',
+    debug: !isProduction,
+    externals: opts.externals,
+    target: opts.target,
+    node: {
+      fs: 'empty',
+      net: 'empty',
+      child_process: 'empty',
     },
     output: {
-      filename: opts.output,
-      libraryTarget: 'umd',
-      library: 'Relay',
+      filename: isProduction ? opts.outputMin : opts.output,
+      libraryTarget: opts.libraryTarget,
+      library: opts.libraryName,
     },
     plugins: [
       new webpackStream.webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(
-          opts.debug ? 'development' : 'production'
+          isProduction ? 'production' : 'development'
         ),
       }),
       new webpackStream.webpack.optimize.OccurenceOrderPlugin(),
       new webpackStream.webpack.optimize.DedupePlugin(),
     ],
   };
-  if (!opts.debug) {
+  if (isProduction) {
     webpackOpts.plugins.push(
       new webpackStream.webpack.optimize.UglifyJsPlugin({
         compress: {
@@ -113,12 +128,32 @@ const builds = [
     entry: 'lib/Relay.js',
     output: 'relay.js',
     outputMin: 'relay.min.js',
+    libraryName: 'Relay',
+    libraryTarget: 'umd',
+    externals: {
+      'react': 'React',
+      'react-dom': 'ReactDOM',
+    },
   },
   {
     entry: 'lib/RelayExperimental.js',
     output: 'relay-experimental.js',
     outputMin: 'relay-experimental.min.js',
+    libraryName: 'Relay',
+    libraryTarget: 'umd',
+    externals: {
+      'react': 'React',
+      'react-dom': 'ReactDOM',
+    },
   },
+  {
+    entry: 'lib/RelayCodegenRunner.js',
+    output: 'relay-codegen.js',
+    libraryName: 'RelayCompiler',
+    libraryTarget: 'commonjs2',
+    target: 'node',
+    externals: [/^[a-z\-0-9]+$/],
+  }
 ];
 
 const paths = {
@@ -147,10 +182,7 @@ gulp.task('dist', ['modules'], function() {
   return es.merge(
     builds.map(build =>
       gulp.src(build.entry)
-        .pipe(buildDist({
-          debug: true,
-          output: build.output
-        }))
+        .pipe(buildDist(build, /* isProduction */ false))
         .pipe(derequire())
         .pipe(header(DEVELOPMENT_HEADER, {
           version: process.env.npm_package_version,
@@ -161,12 +193,9 @@ gulp.task('dist', ['modules'], function() {
 
 gulp.task('dist:min', ['modules'], function() {
   return es.merge(
-    builds.map(build =>
+    builds.filter(build => build.outputMin).map(build =>
       gulp.src(build.entry)
-        .pipe(buildDist({
-          debug: false,
-          output: build.outputMin
-        }))
+        .pipe(buildDist(build, /* isProduction */ true))
         .pipe(header(PRODUCTION_HEADER, {
           version: process.env.npm_package_version,
         }))

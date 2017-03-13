@@ -16,8 +16,9 @@
 
 const prettyStringify = require('prettyStringify');
 
+import type {CacheConfig} from 'RelayCombinedEnvironmentTypes';
 import type {ConcreteBatch} from 'RelayConcreteNode';
-import type {CacheConfig, FetchFunction, QueryPayload} from 'RelayNetworkTypes';
+import type {FetchFunction, QueryPayload} from 'RelayNetworkTypes';
 import type {
   Variables,
 } from 'RelayTypes';

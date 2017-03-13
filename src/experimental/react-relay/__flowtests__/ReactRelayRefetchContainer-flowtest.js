@@ -9,7 +9,7 @@
 const React = require('React');
 const ReactRelayRefetchContainer = require('ReactRelayRefetchContainer');
 
-const {graphql} = require('Relay');
+const {graphql} = require('RelayCompat');
 
 /**
  * Verifies that normal prop type checking works correctly on Relay components.

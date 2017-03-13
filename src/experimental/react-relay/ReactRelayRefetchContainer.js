@@ -31,11 +31,13 @@ import type {
   RefetchOptions,
   RelayRefetchProp,
 } from 'ReactRelayTypes';
-import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {
   Disposable,
-  FragmentMap,
   FragmentSpecResolver,
+} from 'RelayCombinedEnvironmentTypes';
+import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
+import type {
+  FragmentMap,
   RelayContext,
 } from 'RelayStoreTypes';
 import type {

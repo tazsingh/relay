@@ -66,10 +66,10 @@ function mockDisposableMethod(object, key) {
  */
 function createMockEnvironment(options: {
   schema?: ?GraphQLSchema,
-  handleProvider?: ?HandlerProvider,
+  handlerProvider?: ?HandlerProvider,
 }) {
   const schema = options && options.schema;
-  const handleProvider = options && options.handleProvider;
+  const handlerProvider = options && options.handlerProvider;
   const source = new RelayInMemoryRecordSource();
   const store = new RelayMarkSweepStore(source);
 
@@ -132,7 +132,7 @@ function createMockEnvironment(options: {
 
   // Mock instance
   const environment = new RelayStaticEnvironment({
-    handleProvider,
+    handlerProvider,
     network: RelayNetwork.create(fetch),
     store,
   });

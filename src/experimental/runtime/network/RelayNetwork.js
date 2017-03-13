@@ -19,15 +19,15 @@ const warning = require('warning');
 
 const {ROOT_ID} = require('RelayStoreUtils');
 
+import type {CacheConfig, Disposable} from 'RelayCombinedEnvironmentTypes';
 import type {ConcreteBatch} from 'RelayConcreteNode';
 import type {
-  CacheConfig,
   FetchFunction,
   Network,
   QueryPayload,
   RelayResponsePayload,
 } from 'RelayNetworkTypes';
-import type {Disposable, Observer} from 'RelayStoreTypes';
+import type {Observer} from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';
 
 /**
@@ -74,7 +74,7 @@ function create(
         }
         onError && onError(error);
       }
-    );
+    ).catch(rethrow);
     return {
       dispose() {
         isDisposed = true;
@@ -127,6 +127,12 @@ function normalizePayload(
   );
   (error: any).source = {errors, operation, variables};
   throw error;
+}
+
+function rethrow(err) {
+  setTimeout(() => {
+    throw err;
+  }, 0);
 }
 
 module.exports = {create};

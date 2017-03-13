@@ -12,12 +12,40 @@
 
 'use strict';
 
+import type {
+  CacheConfig,
+  CFragmentMap,
+  COperationSelector,
+  CRelayContext,
+  CSelector,
+  CUnstableEnvironmentCore,
+  Disposable,
+  SelectorData,
+} from 'RelayCombinedEnvironmentTypes';
 import type {ConcreteBatch, ConcreteFragment, ConcreteSelectableNode} from 'RelayConcreteNode';
 import type {DataID} from 'RelayInternalTypes';
-import type {CacheConfig, RelayResponsePayload} from 'RelayNetworkTypes';
+import type {RelayResponsePayload} from 'RelayNetworkTypes';
 import type {RecordState} from 'RelayRecordState';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {Variables} from 'RelayTypes';
+
+type TEnvironment = Environment;
+type TFragment = ConcreteFragment;
+type TGraphQLTaggedNode = GraphQLTaggedNode;
+type TNode = ConcreteSelectableNode;
+type TOperation = ConcreteBatch;
+
+export type FragmentMap = CFragmentMap<TFragment>;
+export type OperationSelector = COperationSelector<TNode, TOperation>;
+export type RelayContext = CRelayContext<TEnvironment>;
+export type Selector = CSelector<TNode>;
+export interface UnstableEnvironmentCore extends CUnstableEnvironmentCore<
+  TEnvironment,
+  TFragment,
+  TGraphQLTaggedNode,
+  TNode,
+  TOperation,
+> {}
 
 /**
  * A read-only interface for accessing cached graph data.
@@ -114,9 +142,9 @@ export interface RecordProxy {
   getOrCreateLinkedRecord(name: string, typeName: string, args?: ?Variables): RecordProxy,
   getType(): string,
   getValue(name: string, args?: ?Variables): mixed,
-  setLinkedRecord(record: RecordProxy, name: string, args?: ?Variables): void,
-  setLinkedRecords(records: Array<?RecordProxy>, name: string, args?: ?Variables): void,
-  setValue(value: mixed, name: string, args?: ?Variables): void,
+  setLinkedRecord(record: RecordProxy, name: string, args?: ?Variables): RecordProxy,
+  setLinkedRecords(records: Array<?RecordProxy>, name: string, args?: ?Variables): RecordProxy,
+  setValue(value: mixed, name: string, args?: ?Variables): RecordProxy,
 }
 
 /**
@@ -240,229 +268,10 @@ export interface Environment {
   unstable_internal: UnstableEnvironmentCore,
 }
 
-export interface UnstableEnvironmentCore {
-  /**
-   * Create an instance of a FragmentSpecResolver.
-   *
-   * TODO: The FragmentSpecResolver *can* be implemented via the other methods
-   * defined here, so this could be moved out of core. It's convenient to have
-   * separate implementations until the experimental core is in OSS.
-   */
-  createFragmentSpecResolver: (
-    context: RelayContext,
-    fragments: FragmentMap,
-    props: Props,
-    callback: () => void,
-  ) => FragmentSpecResolver,
-
-  /**
-   * Creates an instance of an OperationSelector given an operation definition
-   * (see `getOperation`) and the variables to apply. The input variables are
-   * filtered to exclude variables that do not matche defined arguments on the
-   * operation, and default values are populated for null values.
-   */
-  createOperationSelector: (
-    operation: ConcreteBatch,
-    variables: Variables,
-  ) => OperationSelector,
-
-  /**
-   * Given a graphql`...` tagged template, extract a fragment definition usable
-   * by this version of Relay core. Throws if the value is not a fragment.
-   */
-  getFragment: (node: GraphQLTaggedNode) => ConcreteFragment,
-
-  /**
-   * Given a graphql`...` tagged template, extract an operation definition
-   * usable by this version of Relay core. Throws if the value is not an
-   * operation.
-   */
-  getOperation: (node: GraphQLTaggedNode) => ConcreteBatch,
-
-  /**
-   * Determine if two selectors are equal (represent the same selection). Note
-   * that this function returns `false` when the two queries/fragments are
-   * different objects, even if they select the same fields.
-   */
-  areEqualSelectors: (a: Selector, b: Selector) => boolean,
-
-  /**
-   * Given the result `item` from a parent that fetched `fragment`, creates a
-   * selector that can be used to read the results of that fragment for that item.
-   *
-   * Example:
-   *
-   * Given two fragments as follows:
-   *
-   * ```
-   * fragment Parent on User {
-   *   id
-   *   ...Child
-   * }
-   * fragment Child on User {
-   *   name
-   * }
-   * ```
-   *
-   * And given some object `parent` that is the results of `Parent` for id "4",
-   * the results of `Child` can be accessed by first getting a selector and then
-   * using that selector to `lookup()` the results against the environment:
-   *
-   * ```
-   * const childSelector = getSelector(queryVariables, Child, parent);
-   * const childData = environment.lookup(childSelector).data;
-   * ```
-   */
-  getSelector: (
-    operationVariables: Variables,
-    fragment: ConcreteFragment,
-    prop: mixed,
-  ) => ?Selector,
-
-  /**
-   * Given the result `items` from a parent that fetched `fragment`, creates a
-   * selector that can be used to read the results of that fragment on those
-   * items. This is similar to `getSelector` but for "plural" fragments that
-   * expect an array of results and therefore return an array of selectors.
-   */
-  getSelectorList: (
-    operationVariables: Variables,
-    fragment: ConcreteFragment,
-    props: Array<mixed>,
-  ) => ?Array<Selector>,
-
-  /**
-   * Given a mapping of keys -> results and a mapping of keys -> fragments,
-   * extracts the selectors for those fragments from the results.
-   *
-   * The canonical use-case for this function are Relay Containers, which
-   * use this function to convert (props, fragments) into selectors so that they
-   * can read the results to pass to the inner component.
-   */
-  getSelectorsFromObject: (
-    operationVariables: Variables,
-    fragments: FragmentMap,
-    props: Props,
-  ) => {[key: string]: ?(Selector | Array<Selector>)},
-
-  /**
-   * Given a mapping of keys -> results and a mapping of keys -> fragments,
-   * extracts a mapping of keys -> id(s) of the results.
-   *
-   * Similar to `getSelectorsFromObject()`, this function can be useful in
-   * determining the "identity" of the props passed to a component.
-   */
-  getDataIDsFromObject: (
-    fragments: FragmentMap,
-    props: Props,
-  ) => {[key: string]: ?(DataID | Array<DataID>)},
-
-  /**
-   * Given a mapping of keys -> results and a mapping of keys -> fragments,
-   * extracts the merged variables that would be in scope for those
-   * fragments/results.
-   *
-   * This can be useful in determing what varaibles were used to fetch the data
-   * for a Relay container, for example.
-   */
-  getVariablesFromObject: (
-    operationVariables: Variables,
-    fragments: FragmentMap,
-    props: Props,
-  ) => Variables,
-}
-
-/**
- * A utility for resolving and subscribing to the results of a fragment spec
- * (key -> fragment mapping) given some "props" that determine the root ID
- * and variables to use when reading each fragment. When props are changed via
- * `setProps()`, the resolver will update its results and subscriptions
- * accordingly. Internally, the resolver:
- * - Converts the fragment map & props map into a map of `Selector`s.
- * - Removes any resolvers for any props that became null.
- * - Creates resolvers for any props that became non-null.
- * - Updates resolvers with the latest props.
- */
-export type FragmentSpecResolver = {
-  /**
-   * Stop watching for changes to the results of the fragments.
-   */
-  +dispose: () => void,
-
-  /**
-   * Get the current results.
-   */
-  +resolve: () => FragmentSpecResults,
-
-  /**
-   * Update the resolver with new inputs. Call `resolve()` to get the updated
-   * results.
-   */
-  +setProps: (props: Props) => void,
-
-  /**
-   * Override the variables used to read the results of the fragments. Call
-   * `resolve()` to get the updated results.
-   */
-  +setVariables: (variables: Variables) => void,
-}
-
-/**
- * The type of the `relay` property set on React context by the React/Relay
- * integration layer (e.g. QueryRenderer, FragmentContainer, etc).
- */
-export type RelayContext = $Exact<{
-  environment: Environment,
-  variables: Variables,
-}>;
-
-export type FragmentMap = {[key: string]: ConcreteFragment};
-
-/**
- * Arbitrary data e.g. received by a container as props.
- */
-export type Props = {[key: string]: mixed};
-
-/**
- * The results of reading the results of a FragmentMap given some input
- * `Props`.
- */
-export type FragmentSpecResults = {[key: string]: mixed};
-
-export type Disposable = {
-  dispose(): void,
-};
-
 export type Observer<T> = {
   onCompleted?: ?() => void,
   onError?: ?(error: Error) => void,
   onNext?: ?(data: T) => void,
-};
-
-/**
- * An operation selector describes a specific instance of a GraphQL operation
- * with variables applied.
- *
- * - `root`: a selector intended for processing server results or retaining
- *   response data in the store.
- * - `fragment`: a selector intended for use in reading or subscribing to
- *   the results of the the operation.
- */
-export type OperationSelector = {|
-  fragment: Selector,
-  node: ConcreteBatch,
-  root: Selector,
-  variables: Variables,
-|};
-
-/**
- * A selector defines the starting point for a traversal into the graph for the
- * purposes of targeting a subgraph.
- */
-export type Selector = {
-  dataID: DataID,
-  node: ConcreteSelectableNode,
-  variables: Variables,
 };
 
 /**
@@ -472,11 +281,6 @@ export type Snapshot = Selector & {
   data: ?SelectorData,
   seenRecords: RecordMap,
 };
-
-/**
- * The results of a selector given a RecordSource.
- */
-export type SelectorData = {[key: string]: mixed};
 
 /**
  * The results of reading data for a fragment. This is similar to a `Selector`,

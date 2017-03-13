@@ -12,31 +12,20 @@
 
 'use strict';
 
-const RelayApplyFragmentArgumentTransform =
-  require('RelayApplyFragmentArgumentTransform');
 const RelayCodeGenerator = require('RelayCodeGenerator');
 const RelayCompilerContext = require('RelayCompilerContext');
-const RelayConnectionTransform = require('RelayConnectionTransform');
-const RelayExportTransform = require('RelayExportTransform');
-const RelayFieldHandleTransform = require('RelayFieldHandleTransform');
-const RelayFilterDirectivesTransform = require('RelayFilterDirectivesTransform');
-const RelayFlattenTransform = require('RelayFlattenTransform');
-const RelayGenerateRequisiteFieldsTransform =
-  require('RelayGenerateRequisiteFieldsTransform');
-const RelayKnownFragmentSpreadValidator = require('RelayKnownFragmentSpreadValidator');
 const RelayPrinter = require('RelayPrinter');
-const RelayRelayDirectiveTransform = require('RelayRelayDirectiveTransform');
-const RelaySkipClientFieldTransform = require('RelaySkipClientFieldTransform');
-const RelaySkipHandleFieldTransform = require('RelaySkipHandleFieldTransform');
-const RelaySkipRedundantNodesTransform =
-  require('RelaySkipRedundantNodesTransform');
-const RelaySkipUnreachableNodeTransform =
-  require('RelaySkipUnreachableNodeTransform');
-const RelayStripRootAliasTransform = require('RelayStripRootAliasTransform');
-const RelayViewerHandleTransform = require('RelayViewerHandleTransform');
 
 const filterContextForNode = require('filterContextForNode');
 const invariant = require('invariant');
+
+const {
+  CODEGEN_TRANSFORMS,
+  FRAGMENT_TRANSFORMS,
+  QUERY_TRANSFORMS,
+  PRINT_TRANSFORMS,
+  VALIDATORS,
+} = require('RelayIRTransforms');
 
 import type {GeneratedNode} from 'RelayConcreteNode';
 import type {Fragment, Root} from 'RelayIR';
@@ -53,62 +42,6 @@ export interface Compiler {
   compile(): CompiledDocumentMap,
 }
 
-// Transforms applied to fragments used for reading data from a store
-const FRAGMENT_TRANSFORMS = [
-  RelayConnectionTransform.transform,
-  RelayViewerHandleTransform.transform,
-  RelayRelayDirectiveTransform.transform,
-  RelayFieldHandleTransform.transform,
-  ctx => RelayFlattenTransform.transform(ctx, {
-    flattenAbstractTypes: true,
-  }),
-  RelaySkipRedundantNodesTransform.transform,
-];
-
-// Transforms applied to queries/mutations/subscriptions that are used for
-// fetching data from the server and parsing those responses.
-const QUERY_TRANSFORMS = [
-  ctx => RelayConnectionTransform.transform(ctx, {
-    generateRequisiteFields: true,
-  }),
-  RelayViewerHandleTransform.transform,
-  RelayApplyFragmentArgumentTransform.transform,
-  RelaySkipClientFieldTransform.transform,
-  RelaySkipUnreachableNodeTransform.transform,
-  RelayExportTransform.transform,
-  RelayRelayDirectiveTransform.transform,
-  RelayStripRootAliasTransform.transform, // for legacy GraphQL compatibility
-  RelayGenerateRequisiteFieldsTransform.transform,
-  RelayFilterDirectivesTransform.transform,
-];
-
-// Transforms applied to the code used to process a query response.
-const CODEGEN_TRANSFORMS = [
-  ctx => RelayFlattenTransform.transform(ctx, {
-    flattenAbstractTypes: true,
-    flattenFragmentSpreads: true,
-  }),
-  RelaySkipRedundantNodesTransform.transform,
-];
-
-// Transforms applied before printing the query sent to the server.
-const PRINT_TRANSFORMS = [
-  ctx => RelayFlattenTransform.transform(ctx, {}),
-  RelaySkipHandleFieldTransform.transform,
-];
-
-// Schema extensions (primarily to add handling for custom directives)
-const SCHEMA_TRANSFORMS = [
-  RelayConnectionTransform.transformSchema,
-  RelayExportTransform.transformSchema,
-  RelayRelayDirectiveTransform.transformSchema,
-];
-
-// IR-level validators
-const VALIDATORS = [
-  RelayKnownFragmentSpreadValidator.validate,
-];
-
 /**
  * A utility class for parsing a corpus of GraphQL documents, transforming them
  * with a standardized set of transforms, and generating runtime representations
@@ -118,16 +51,11 @@ class RelayCompiler {
   _context: RelayCompilerContext;
   _schema: GraphQLSchema;
 
-  constructor(schema: GraphQLSchema, context?: RelayCompilerContext) {
-    if (context) {
-      this._context = context;
-    } else {
-      const extendedSchema = SCHEMA_TRANSFORMS.reduce(
-        (acc, transform) => transform(acc),
-        schema
-      );
-      this._context = new RelayCompilerContext(extendedSchema);
-    }
+  // The context passed in must already have any Relay-specific schema extensions
+  constructor(schema: GraphQLSchema, context: RelayCompilerContext) {
+    this._context = context;
+    // some transforms depend on this being the original schema,
+    // not the transformed schema/context's schema
     this._schema = schema;
   }
 
@@ -135,10 +63,13 @@ class RelayCompiler {
     return new RelayCompiler(this._schema, this._context);
   }
 
-  add(text: string): Array<Root | Fragment> {
-    const {context, nodes} = this._context.parse(text);
-    this._context = context;
-    return nodes;
+  context(): RelayCompilerContext {
+    return this._context;
+  }
+
+  addDefinitions(definitions: Array<Fragment | Root>): Array<Root | Fragment> {
+    this._context = this._context.addAll(definitions);
+    return this._context.documents();
   }
 
   transformedQueryContext(): RelayCompilerContext {

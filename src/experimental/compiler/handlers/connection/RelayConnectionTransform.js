@@ -15,6 +15,7 @@
 const GraphQL = require('graphql');
 const RelayCompilerContext = require('RelayCompilerContext');
 const RelayIRTransformer = require('RelayIRTransformer');
+const RelayParser = require('RelayParser');
 const RelaySchemaUtils = require('RelaySchemaUtils');
 
 const getRelayLiteralArgumentValues = require('getRelayLiteralArgumentValues');
@@ -187,7 +188,7 @@ function generateConnectionFragment(
   type: GraphQLType
 ): InlineFragment {
   const compositeType = assertCompositeType(type);
-  const {nodes} = context.parse(`
+  const ast = GraphQL.parse(`
     fragment ConnectionFragment on ${String(compositeType)} {
       ${EDGES} {
         ${CURSOR}
@@ -203,7 +204,12 @@ function generateConnectionFragment(
       }
     }
   `);
-  const fragment = nodes[0];
+  const fragmentAST = ast.definitions[0];
+  invariant(
+    fragmentAST && fragmentAST.kind === 'FragmentDefinition',
+    'RelayConnectionTransform: Expected a fragment definition AST.'
+  );
+  const fragment = RelayParser.transform(context.schema, fragmentAST);
   invariant(
     fragment && fragment.kind === 'Fragment',
     'RelayConnectionTransform: Expected a connection fragment.'

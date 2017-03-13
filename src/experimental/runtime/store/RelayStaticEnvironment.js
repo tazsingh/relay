@@ -17,14 +17,14 @@ const RelayPublishQueue = require('RelayPublishQueue');
 
 const normalizeRelayPayload = require('normalizeRelayPayload');
 
+import type {CacheConfig, Disposable} from 'RelayCombinedEnvironmentTypes';
 import type {
-  CacheConfig,
   Network,
   PayloadData,
   RelayResponsePayload,
 } from 'RelayNetworkTypes';
 import type {
-  Disposable,
+  Environment,
   Handler,
   OperationSelector,
   Selector,
@@ -36,16 +36,13 @@ import type {
 } from 'RelayStoreTypes';
 
 export type EnvironmentConfig = {
-  handleProvider: ?HandlerProvider,
+  handlerProvider: ?HandlerProvider,
   network: Network,
   store: Store,
 };
 export type HandlerProvider = (name: string) => ?Handler;
 
-/**
- * Implements the `Environment` interface defined in RelayStoreTypes.
- */
-class RelayStaticEnvironment {
+class RelayStaticEnvironment implements Environment {
   _network: Network;
   _publishQueue: RelayPublishQueue;
   _store: Store;
@@ -53,7 +50,7 @@ class RelayStaticEnvironment {
 
   constructor(config: EnvironmentConfig) {
     this._network = config.network;
-    this._publishQueue = new RelayPublishQueue(config.store, config.handleProvider);
+    this._publishQueue = new RelayPublishQueue(config.store, config.handlerProvider);
     this._store = config.store;
     this.unstable_internal = RelayCore;
   }

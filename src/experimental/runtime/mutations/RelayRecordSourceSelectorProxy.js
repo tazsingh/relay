@@ -21,7 +21,7 @@ const {getStorageKey} = require('RelayStoreUtils');
 import type {ConcreteLinkedField} from 'RelayConcreteNode';
 import type RelayRecordSourceMutator from 'RelayRecordSourceMutator';
 import type {HandlerProvider} from 'RelayStaticEnvironment';
-import type {RecordProxy, Selector} from 'RelayStoreTypes';
+import type {RecordProxy, Selector, RecordSourceSelectorProxy} from 'RelayStoreTypes';
 
 /**
  * @internal
@@ -31,7 +31,10 @@ import type {RecordProxy, Selector} from 'RelayStoreTypes';
  * complex arguments and it can be tedious to re-construct the correct sets of
  * arguments to pass to e.g. `getRoot().getLinkedRecord()`.
  */
-class RelayRecordSourceSelectorProxy extends RelayRecordSourceProxy {
+class RelayRecordSourceSelectorProxy
+  extends RelayRecordSourceProxy
+  implements RecordSourceSelectorProxy {
+
   _selector: Selector;
 
   constructor(

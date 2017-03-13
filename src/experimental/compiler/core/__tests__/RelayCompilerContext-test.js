@@ -12,7 +12,6 @@
 jest.disableAutomock();
 
 describe('RelayCompilerContext', () => {
-  let GraphQL;
   let RelayCompilerContext;
   let RelayParser;
   let RelayTestSchema;
@@ -21,15 +20,15 @@ describe('RelayCompilerContext', () => {
   let queryFoo;
   let fragmentBar;
   let fragmentFoo;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
     RelayCompilerContext = require('RelayCompilerContext');
     RelayParser = require('RelayParser');
+    parseGraphQLText = require('parseGraphQLText');
     RelayTestSchema = require('RelayTestSchema');
     RelayStaticTestUtils = require('RelayStaticTestUtils');
-
-    GraphQL = require('graphql');
 
     jasmine.addMatchers(RelayStaticTestUtils.matchers);
 
@@ -67,19 +66,13 @@ describe('RelayCompilerContext', () => {
       );
     });
   });
-  describe('extendSchema()', () => {
+  describe('updateSchema()', () => {
     it('returns new context for schema extending query', () => {
       const prevContext = new RelayCompilerContext(RelayTestSchema);
-      const ast = GraphQL.parse(`
+      const {definitions, schema} = parseGraphQLText(RelayTestSchema, `
         extend type User {
           best_friends: FriendsConnection
         }
-      `);
-      const {context, schema} = prevContext.extendSchema(ast);
-
-      expect(context).not.toEqual(prevContext);
-      expect(schema).not.toEqual(RelayTestSchema);
-      const extendedQuery = `
         fragment Bar on User {
           best_friends {
             edges {
@@ -87,21 +80,12 @@ describe('RelayCompilerContext', () => {
             }
           }
         }
-      `;
-      expect(() => prevContext.parse(extendedQuery)).toThrow();
-      expect(() => context.parse(extendedQuery)).not.toThrow();
-    });
-
-    it('returns same context for normal query', () => {
-      const prevContext = new RelayCompilerContext(RelayTestSchema);
-      const ast = GraphQL.parse(`
-        fragment Foo on User {
-          id
-        }
       `);
-      const {context, schema} = prevContext.extendSchema(ast);
-      expect(context).toEqual(prevContext);
-      expect(schema).toEqual(RelayTestSchema);
+      const context = prevContext.updateSchema(schema);
+
+      expect(context).not.toEqual(prevContext);
+      expect(context.schema).not.toEqual(RelayTestSchema);
+      expect(() => context.add(definitions)).not.toThrow();
     });
   });
 });

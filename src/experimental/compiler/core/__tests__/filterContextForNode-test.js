@@ -18,6 +18,7 @@ const RelayPrinter = require('RelayPrinter');
 const RelayTestSchema = require('RelayTestSchema');
 const filterContextForNode = require('filterContextForNode');
 const getGoldenMatchers = require('getGoldenMatchers');
+const parseGraphQLText = require('parseGraphQLText');
 
 const MAIN_QUERY_NAME = 'MainQuery';
 
@@ -28,7 +29,8 @@ describe('filterContextForNode', () => {
 
   it('matches expected output', () => {
     expect('fixtures/filter-context').toMatchGolden(text => {
-      const {context} = new RelayCompilerContext(RelayTestSchema).parse(text);
+      const {definitions} = parseGraphQLText(RelayTestSchema, text);
+      const context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
       const printerContext = filterContextForNode(context.get(MAIN_QUERY_NAME), context);
       return printerContext.documents().map(RelayPrinter.print).join('\n');
     });

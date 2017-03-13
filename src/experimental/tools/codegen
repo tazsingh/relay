@@ -1,0 +1,6 @@
+#!/bin/bash
+# Copyright 2004-present Facebook. All Rights Reserved.
+
+# This script exists only to temporarily satisfy RelaySanityTest
+# https://phabricator.intern.facebook.com/diffusion/E/browse/tfb/trunk/www/flib/intern/sandcastle/mobile/SandcastleRelaySanityTestCommand.php;2886952$8
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../tools/codegen"

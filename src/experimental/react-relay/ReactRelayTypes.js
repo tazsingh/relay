@@ -12,11 +12,9 @@
 
 'use strict';
 
+import type {Disposable} from 'RelayCombinedEnvironmentTypes';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
-import type {
-  Disposable,
-  Environment,
-} from 'RelayStoreTypes';
+import type {Environment} from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';
 
 export type GeneratedNodeMap = {[key: string]: GraphQLTaggedNode};

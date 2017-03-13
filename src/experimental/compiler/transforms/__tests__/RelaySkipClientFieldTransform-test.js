@@ -17,6 +17,7 @@ describe('RelaySkipClientFieldTransform', () => {
   let RelaySkipClientFieldTransform;
   let RelayTestSchema;
   let getGoldenMatchers;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
@@ -26,14 +27,15 @@ describe('RelaySkipClientFieldTransform', () => {
     RelaySkipClientFieldTransform = require('RelaySkipClientFieldTransform');
     RelayTestSchema = require('RelayTestSchema');
     getGoldenMatchers = require('getGoldenMatchers');
+    parseGraphQLText = require('parseGraphQLText');
 
     jasmine.addMatchers(getGoldenMatchers(__filename));
   });
 
   it('skips fields/types not defined in the original schema', () => {
     expect('fixtures/skip-client-field-transform').toMatchGolden(text => {
-      let context = new RelayCompilerContext(RelayTestSchema);
-      context = context.parse(text).context;
+      const {definitions, schema} = parseGraphQLText(RelayTestSchema, text);
+      let context = (new RelayCompilerContext(schema)).addAll(definitions);
       context = RelaySkipClientFieldTransform.transform(context, RelayTestSchema);
       const documents = [];
       context.documents().forEach(doc => {

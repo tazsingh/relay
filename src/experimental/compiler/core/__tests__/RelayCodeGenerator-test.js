@@ -16,6 +16,7 @@ const RelayCompilerContext = require('RelayCompilerContext');
 const RelayTestSchema = require('RelayTestSchema');
 const prettyStringify = require('prettyStringify');
 const getGoldenMatchers = require('getGoldenMatchers');
+const parseGraphQLText = require('parseGraphQLText');
 
 describe('RelayCodeGenerator', () => {
   beforeEach(() => {
@@ -24,8 +25,8 @@ describe('RelayCodeGenerator', () => {
 
   it('matches expected output', () => {
     expect('fixtures/code-generator').toMatchGolden(text => {
-      let context = new RelayCompilerContext(RelayTestSchema);
-      context = context.parse(text).context;
+      const {definitions} = parseGraphQLText(RelayTestSchema, text);
+      const context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
       return context.documents().map(doc => (
         prettyStringify(RelayCodeGenerator.generate(doc))
       )).join('\n\n');

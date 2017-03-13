@@ -16,7 +16,7 @@ const RelayRecordState = require('RelayRecordState');
 
 import type {DataID} from 'RelayInternalTypes';
 import type {RecordState} from 'RelayRecordState';
-import type {Record, RecordMap} from 'RelayStoreTypes';
+import type {MutableRecordSource, Record, RecordMap} from 'RelayStoreTypes';
 
 const {EXISTENT, NONEXISTENT, UNKNOWN} = RelayRecordState;
 
@@ -24,7 +24,7 @@ const {EXISTENT, NONEXISTENT, UNKNOWN} = RelayRecordState;
  * An implementation of the `MutableRecordSource` interface (defined in
  * `RelayStoreTypes`) that holds all records in memory.
  */
-class RelayInMemoryRecordSource {
+class RelayInMemoryRecordSource implements MutableRecordSource {
   _records: RecordMap;
 
   constructor(records?: RecordMap) {

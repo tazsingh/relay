@@ -40,11 +40,13 @@ import type {
   RefetchOptions,
   RelayPaginationProp,
 } from 'ReactRelayTypes';
+import type {Disposable} from 'RelayCombinedEnvironmentTypes';
+import type {
+  FragmentSpecResolver,
+} from 'RelayCombinedEnvironmentTypes';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {
-  Disposable,
   FragmentMap,
-  FragmentSpecResolver,
   RelayContext,
 } from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';

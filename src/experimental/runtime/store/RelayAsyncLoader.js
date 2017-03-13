@@ -19,6 +19,7 @@ const RelayStoreUtils = require('RelayStoreUtils');
 const cloneRelayHandleSourceField = require('cloneRelayHandleSourceField');
 const invariant = require('invariant');
 
+import type {Disposable} from 'RelayCombinedEnvironmentTypes';
 import type {
   ConcreteLinkedField,
   ConcreteNode,
@@ -28,7 +29,6 @@ import type {
 import type {DataID} from 'RelayInternalTypes';
 import type {
   AsyncLoadCallback,
-  Disposable,
   LoadingState,
   MutableRecordSource,
   Record,

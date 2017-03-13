@@ -11,14 +11,15 @@
 
 jest.disableAutomock();
 
-const RelayIRTransformer = require('RelayIRTransformer');
 const RelayCompilerContext = require('RelayCompilerContext');
+const RelayIRTransformer = require('RelayIRTransformer');
 const RelayTestSchema = require('RelayTestSchema');
+
+const parseGraphQLText = require('parseGraphQLText');
 
 describe('RelayIRTransformer', () => {
   it('visits all node types', () => {
-    let context = new RelayCompilerContext(RelayTestSchema);
-    context = context.parse(`
+    const {definitions} = parseGraphQLText(RelayTestSchema, `
       query TestQuery($id: ID!) {
         node(id: $id) {
           ...on User {
@@ -61,7 +62,8 @@ describe('RelayIRTransformer', () => {
       ) {
         uri
       }
-    `).context;
+    `);
+    const context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
 
     const astKinds = [
       'Argument',

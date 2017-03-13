@@ -83,7 +83,7 @@ describe('ReactRelayPaginationContainer', () => {
     jest.addMatchers(RelayStaticTestUtils.matchers);
 
     environment = createMockEnvironment({
-      handleProvider: () => RelayConnectionHandler,
+      handlerProvider: () => RelayConnectionHandler,
     });
     ({UserFragment, UserQuery} = environment.mock.compile(`
       query UserQuery(

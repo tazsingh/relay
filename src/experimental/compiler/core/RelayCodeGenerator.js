@@ -7,11 +7,13 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  *
  * @providesModule RelayCodeGenerator
+ * @flow
  */
 
 'use strict';
 
 const GraphQL = require('graphql');
+const RelayIRVisitor = require('RelayIRVisitor');
 const RelaySchemaUtils = require('RelaySchemaUtils');
 const RelayStoreUtils = require('RelayStoreUtils');
 
@@ -26,12 +28,8 @@ import type {
   ConcreteSelection,
 } from 'RelayConcreteNode';
 import type {
-  Argument,
-  ArgumentDefinition,
   Fragment,
   Root,
-  Selection,
-  Type,
 } from 'RelayIR';
 
 const {GraphQLList} = GraphQL;
@@ -42,6 +40,9 @@ const {
 } = RelaySchemaUtils;
 const {formatStorageKey} = RelayStoreUtils;
 
+declare function generate(node: Root): ConcreteRoot;
+declare function generate(node: Fragment): ConcreteFragment;
+
 /**
  * @public
  *
@@ -49,218 +50,206 @@ const {formatStorageKey} = RelayStoreUtils;
  * used at runtime.
  */
 function generate(node: Root | Fragment): ConcreteRoot | ConcreteFragment {
-  const generator = new RelayCodeGenerator(node);
-  return generator.generate();
+  invariant(
+    ['Root', 'Fragment'].indexOf(node.kind) >= 0,
+    'RelayCodeGenerator: Unknown AST kind `%s`. Source: %s.',
+    node.kind,
+    getErrorMessage(node)
+  );
+  return RelayIRVisitor.visit(node, RelayCodeGenVisitor);
 }
 
-class RelayCodeGenerator {
-  _node: Root | Fragment;
-
-  constructor(node: Root | Fragment) {
-    this._node = node;
-  }
-
-  _getErrorMessage(): string {
-    return `document ${this._node.name}`;
-  }
-
-  generate(): ConcreteRoot | ConcreteFragment {
-    const node = this._node;
-    if (node.kind === 'Root') {
+const RelayCodeGenVisitor = {
+  leave: {
+    Root(node): ConcreteRoot {
       return {
-        argumentDefinitions:
-          this._generateArgumentDefinitions(node.argumentDefinitions),
+        argumentDefinitions: node.argumentDefinitions,
         kind: 'Root',
         name: node.name,
         operation: node.operation,
-        selections: this._generateSelections(node.selections),
+        selections: flattenArray(node.selections),
       };
-    } else if (node.kind === 'Fragment') {
+    },
+
+    Fragment(node): ConcreteFragment {
       return {
-        argumentDefinitions:
-          this._generateArgumentDefinitions(node.argumentDefinitions),
+        argumentDefinitions: node.argumentDefinitions,
         kind: 'Fragment',
         metadata: node.metadata || null,
         name: node.name,
-        selections: this._generateSelections(node.selections),
+        selections: flattenArray(node.selections),
         type: node.type.toString(),
       };
-    } else {
+    },
+
+    LocalArgumentDefinition(node): ConcreteArgumentDefinition {
+      return {
+        kind: 'LocalArgument',
+        name: node.name,
+        type: node.type.toString(),
+        defaultValue: node.defaultValue,
+      };
+    },
+
+    RootArgumentDefinition(node): ConcreteArgumentDefinition {
+      return {
+        kind: 'RootArgument',
+        name: node.name,
+        type: node.type ?
+          node.type.toString() :
+          null,
+      };
+    },
+
+    Condition(node, key, parent, ancestors): ConcreteSelection {
       invariant(
-        false,
-        'RelayCodeGenerator: Unknown AST kind `%s`. Source: %s.',
-        node.kind,
-        this._getErrorMessage()
+        node.condition.kind === 'Variable',
+        'RelayCodeGenerator: Expected static `Condition` node to be ' +
+        'pruned or inlined. Source: %s.',
+        getErrorMessage(ancestors[0])
       );
-    }
-  }
+      return {
+        kind: 'Condition',
+        passingValue: node.passingValue,
+        condition: node.condition.variableName,
+        selections: flattenArray(node.selections),
+      };
+    },
 
-  _generateArgumentDefinitions(
-    definitions: Array<ArgumentDefinition>
-  ): Array<ConcreteArgumentDefinition> {
-    return definitions.map(def => {
-      if (def.kind === 'LocalArgumentDefinition') {
+    FragmentSpread(node): ConcreteSelection {
+      return {
+        kind: 'FragmentSpread',
+        name: node.name,
+        args: valuesOrNull(sortByName(node.args)),
+      };
+    },
+
+    InlineFragment(node): ConcreteSelection {
+      return {
+        kind: 'InlineFragment',
+        type: node.typeCondition.toString(),
+        selections: flattenArray(node.selections),
+      };
+    },
+
+    LinkedField(node): Array<ConcreteSelection> {
+      const handles = (node.handles && node.handles.map((handle) => {
         return {
-          kind: 'LocalArgument',
-          name: def.name,
-          type: def.type.toString(),
-          defaultValue: def.defaultValue,
+          kind: 'LinkedHandle',
+          alias: node.alias,
+          args: valuesOrNull(sortByName(node.args)),
+          handle,
+          name: node.name,
         };
-      } else {
-        return {
-          kind: 'RootArgument',
-          name: def.name,
-          type: def.type ?
-            def.type.toString() :
+      })) || [];
+      const type = getRawType(node.type);
+      return [{
+          kind: 'LinkedField',
+          alias: node.alias,
+          args: valuesOrNull(sortByName(node.args)),
+          concreteType: !isAbstractType(type) ?
+            type.toString() :
             null,
-        };
-      }
-    });
-  }
+          name: node.name,
+          plural: isPlural(node.type),
+          selections: flattenArray(node.selections),
+          storageKey: getStorageKey(node.name, node.args),
+        },
+        ...handles,
+      ];
+    },
 
-  _generateSelections(
-    selections: Array<Selection>,
-  ): Array<ConcreteSelection> {
-    const concreteSelections = [];
-    selections.forEach(selection => {
-      const generatedSelections = this._generateSelection(selection);
-      if (Array.isArray(generatedSelections)) {
-        concreteSelections.push(...generatedSelections);
-      } else {
-        concreteSelections.push(generatedSelections);
-      }
-    });
-    return concreteSelections;
-  }
+    ScalarField(node): Array<ConcreteSelection> {
+      const handles = (node.handles && node.handles.map((handle) => {
+        return {
+          kind: 'ScalarHandle',
+          alias: node.alias,
+          args: valuesOrNull(sortByName(node.args)),
+          handle,
+          name: node.name,
+        };
+      })) || [];
+      return [{
+          kind: 'ScalarField',
+          alias: node.alias,
+          args: valuesOrNull(sortByName(node.args)),
+          name: node.name,
+          selections: valuesOrUndefined(flattenArray(node.selections)),
+          storageKey: getStorageKey(node.name, node.args),
+        },
+        ...handles,
+      ];
+    },
 
-  _generateSelection(
-    selection: Selection
-  ): ConcreteSelection | Array<ConcreteSelection> {
-    switch (selection.kind) {
-      case 'Condition':
-        invariant(
-          selection.condition.kind === 'Variable',
-          'RelayCodeGenerator: Expected static `Condition` node to be ' +
-          'pruned or inlined. Source: %s.',
-          this._getErrorMessage()
-        );
-        return {
-          kind: 'Condition',
-          passingValue: selection.passingValue,
-          condition: selection.condition.variableName,
-          selections: this._generateSelections(selection.selections),
-        };
-      case 'FragmentSpread':
-        return {
-          kind: 'FragmentSpread',
-          name: selection.name,
-          args: this._generateArguments(selection.args),
-        };
-      case 'InlineFragment':
-        return {
-          kind: 'InlineFragment',
-          type: selection.typeCondition.toString(),
-          selections: this._generateSelections(selection.selections),
-        };
-      case 'LinkedField':
-      case 'ScalarField':
-        {
-          const generatedSelections = [];
-          const args = this._generateArguments(selection.args);
-          if (selection.kind === 'LinkedField') {
-            const type = getRawType(selection.type);
-            generatedSelections.push({
-              kind: 'LinkedField',
-              alias: selection.alias,
-              args,
-              concreteType: !isAbstractType(type) ?
-                type.toString() :
-                null,
-              name: selection.name,
-              plural: isPlural(selection.type),
-              selections: this._generateSelections(selection.selections),
-              storageKey: getStorageKey(selection.name, args),
-            });
-          } else {
-            generatedSelections.push({
-              kind: 'ScalarField',
-              alias: selection.alias,
-              args,
-              name: selection.name,
-              storageKey: getStorageKey(selection.name, args),
-            });
-          }
-          selection.handles && selection.handles.forEach(handle => {
-            generatedSelections.push({
-              kind: selection.kind === 'LinkedField' ?
-                'LinkedHandle' :
-                'ScalarHandle',
-              alias: selection.alias,
-              args,
-              handle,
-              name: selection.name,
-            });
-          });
-          return generatedSelections;
-        }
-      default:
-        invariant(
-          false,
-          'RelayCodeGenerator: Unexpected AST kind `%s`. Source: %s',
-          selection.kind,
-          this._getErrorMessage()
-        );
-    }
-  }
+    Variable(node, key, parent): ConcreteArgument {
+      return {
+        kind: 'Variable',
+        name: parent.name,
+        variableName: node.variableName,
+        type: parent.type ?
+          parent.type.toString() :
+          null,
+      };
+    },
 
-  _generateArguments(
-    args: Array<Argument>
-  ): ?Array<ConcreteArgument> {
-    const generatedArgs = [];
-    args.forEach(arg => {
-      if (arg.value.kind === 'Variable') {
-        generatedArgs.push({
-          kind: 'Variable',
-          name: arg.name,
-          variableName: arg.value.variableName,
-          type: arg.type ?
-            arg.type.toString() :
-            null,
-        });
-      } else if (arg.value.kind === 'Literal') {
-        if (arg.value.value != null) {
-          generatedArgs.push({
-            kind: 'Literal',
-            name: arg.name,
-            value: arg.value.value,
-            type: arg.type ?
-              arg.type.toString() :
-              null,
-          });
-        }
-      } else {
-        invariant(
-          false,
-          'RelayCodeGenerator: Complex argument values (Lists or ' +
-          'InputObjects with nested variables) are not supported, argument ' +
-          '`%s` had value `%s`. Source: %s.',
-          arg.name,
-          prettyStringify(arg.value),
-          this._getErrorMessage()
-        );
-      }
-    });
-    if (!generatedArgs.length) {
-      return null;
-    }
-    return generatedArgs.sort((a, b) => (
-      a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
-    ));
-  }
+    Literal(node, key, parent): ConcreteArgument {
+      return {
+        kind: 'Literal',
+        name: parent.name,
+        value: node.value,
+        type: parent.type ?
+          parent.type.toString() :
+          null,
+      };
+    },
+
+    Argument(node, key, parent, ancestors): ?ConcreteArgument {
+      invariant(
+        ['Variable', 'Literal'].indexOf(node.value.kind) >= 0,
+        'RelayCodeGenerator: Complex argument values (Lists or ' +
+        'InputObjects with nested variables) are not supported, argument ' +
+        '`%s` had value `%s`. Source: %s.',
+        node.name,
+        prettyStringify(node.value),
+        getErrorMessage(ancestors[0])
+      );
+      return node.value.value !== null ? node.value : null;
+    },
+  },
+};
+
+function isPlural(type: any): boolean {
+  return getNullableType(type) instanceof GraphQLList;
 }
 
-function isPlural(type: Type): boolean {
-  return getNullableType(type) instanceof GraphQLList;
+function valuesOrUndefined<T>(array: ?Array<T>): ?Array<T> {
+  return !array || array.length === 0
+    ? undefined
+    : array;
+}
+
+function valuesOrNull<T>(array: ?Array<T>): ?Array<T> {
+  return !array || array.length === 0
+    ? null
+    : array;
+}
+
+function flattenArray<T>(array: Array<Array<T>>): Array<T> {
+  return array
+    ? Array.prototype.concat.apply([], array)
+    : [];
+}
+
+function sortByName<T: {name: string}>(array: Array<T>): Array<T> {
+  return array instanceof Array
+    ? array.sort((a, b) => (
+        a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
+      ))
+    : array;
+}
+
+function getErrorMessage(node: any): string {
+  return `document ${node.name}`;
 }
 
 /**
@@ -281,11 +270,11 @@ function getStorageKey(
   }
   let isLiteral = true;
   const preparedArgs = {};
-  args.forEach(({name, kind, value}) => {
-    if (kind !== 'Literal') {
+  args.forEach((arg) => {
+    if (arg.kind !== 'Literal') {
       isLiteral = false;
     } else {
-      preparedArgs[name] = value;
+      preparedArgs[arg.name] = arg.value;
     }
   });
   return isLiteral ? formatStorageKey(fieldName, preparedArgs) : null;

@@ -18,6 +18,7 @@ describe('RelayFilterDirectivesTransform', () => {
   let RelayFilterDirectivesTransform;
   let RelayTestSchema;
   let getGoldenMatchers;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
@@ -28,6 +29,7 @@ describe('RelayFilterDirectivesTransform', () => {
     RelayFilterDirectivesTransform = require('RelayFilterDirectivesTransform');
     RelayTestSchema = require('RelayTestSchema');
     getGoldenMatchers = require('getGoldenMatchers');
+    parseGraphQLText = require('parseGraphQLText');
 
     jasmine.addMatchers(getGoldenMatchers(__filename));
   });
@@ -38,9 +40,9 @@ describe('RelayFilterDirectivesTransform', () => {
       const extendedSchema = RelayExportTransform.transformSchema(
         RelayTestSchema
       );
-      let context = new RelayCompilerContext(extendedSchema);
+      const {definitions} = parseGraphQLText(extendedSchema, text);
+      let context = (new RelayCompilerContext(extendedSchema)).addAll(definitions);
 
-      context = context.parse(text).context;
       context = RelayFilterDirectivesTransform.transform(
         context,
         RelayTestSchema

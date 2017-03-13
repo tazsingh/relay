@@ -19,6 +19,7 @@ describe('RelayConnectionTransform', () => {
   let RelayPrinter;
   let RelayTestSchema;
   let getGoldenMatchers;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
@@ -28,6 +29,7 @@ describe('RelayConnectionTransform', () => {
     RelayPrinter = require('RelayPrinter');
     RelayTestSchema = require('RelayTestSchema');
     getGoldenMatchers = require('getGoldenMatchers');
+    parseGraphQLText = require('parseGraphQLText');
 
     jasmine.addMatchers(getGoldenMatchers(__filename));
   });
@@ -36,8 +38,8 @@ describe('RelayConnectionTransform', () => {
     expect('fixtures/connection-transform').toMatchGolden(text => {
       try {
         const schema = RelayConnectionTransform.transformSchema(RelayTestSchema);
-        let context = new RelayCompilerContext(schema);
-        context = context.parse(text).context;
+        const {definitions} = parseGraphQLText(schema, text);
+        let context = (new RelayCompilerContext(schema)).addAll(definitions);
         context = RelayConnectionTransform.transform(context);
         return context.documents().map(doc => RelayPrinter.print(doc)).join('\n');
       } catch (error) {
@@ -50,8 +52,11 @@ describe('RelayConnectionTransform', () => {
     expect('fixtures/connection-transform-generate-requisite-fields').toMatchGolden(text => {
       try {
         const schema = RelayConnectionTransform.transformSchema(RelayTestSchema);
-        let context = new RelayCompilerContext(schema);
-        context = context.parse(text).context;
+        const {definitions} = parseGraphQLText(schema, text);
+        let context = definitions.reduce(
+          (ctx, def) => ctx.add(def),
+          new RelayCompilerContext(schema)
+        );
         context = RelayConnectionTransform.transform(context, {
           generateRequisiteFields: true,
         });

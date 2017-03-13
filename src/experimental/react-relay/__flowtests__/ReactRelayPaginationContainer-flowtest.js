@@ -9,7 +9,7 @@
 const React = require('React');
 const ReactRelayPaginationContainer = require('ReactRelayPaginationContainer');
 
-const {graphql} = require('Relay');
+const {graphql} = require('RelayCompat');
 
 /**
  * Verifies that normal prop type checking, as well as the methods proxying Relay does, is

@@ -13,11 +13,15 @@ jest.autoMockOff();
 
 require('configureForRelayOSS');
 
+
+const {transformASTSchema} = require('ASTConvert');
 const RelayCompiler = require('RelayCompiler');
+const RelayCompilerContext = require('RelayCompilerContext');
 const RelayTestSchema = require('RelayTestSchema');
 
 const getGoldenMatchers = require('getGoldenMatchers');
 const invariant = require('invariant');
+const parseGraphQLText = require('parseGraphQLText');
 const prettyStringify = require('prettyStringify');
 
 describe('RelayCompiler', () => {
@@ -27,8 +31,12 @@ describe('RelayCompiler', () => {
 
   it('matches expected output', () => {
     expect('fixtures/compiler').toMatchGolden(text => {
-      const compiler = new RelayCompiler(RelayTestSchema);
-      compiler.add(text);
+      const relaySchema = transformASTSchema(RelayTestSchema);
+      const compiler = new RelayCompiler(
+        RelayTestSchema,
+        new RelayCompilerContext(relaySchema),
+      );
+      compiler.addDefinitions(parseGraphQLText(relaySchema, text).definitions);
       return [...compiler.compile().values()].map(
         ({text: queryText, ...ast}) => {
           let stringified = prettyStringify(ast);
@@ -43,8 +51,12 @@ describe('RelayCompiler', () => {
 
   it('matches expected validation output', () => {
     expect('fixtures/compiler-validation').toMatchGolden(text => {
-      const compiler = new RelayCompiler(RelayTestSchema);
-      compiler.add(text);
+      const relaySchema = transformASTSchema(RelayTestSchema);
+      const compiler = new RelayCompiler(
+        RelayTestSchema,
+        new RelayCompilerContext(relaySchema),
+      );
+      compiler.addDefinitions(parseGraphQLText(relaySchema, text).definitions);
       let error;
       try {
         compiler.compile();

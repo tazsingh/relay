@@ -18,10 +18,10 @@ const RelayPropTypes = require('RelayPropTypes');
 const areEqual = require('areEqual');
 const deepFreeze = require('deepFreeze');
 
-import type {CacheConfig} from 'RelayNetworkTypes';
+import type {CacheConfig, Disposable} from 'RelayCombinedEnvironmentTypes';
+import type {RelayEnvironmentInterface as RelayClassicEnvironment} from 'RelayEnvironment';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {
-  Disposable,
   Environment,
   OperationSelector,
   RelayContext,
@@ -31,7 +31,7 @@ import type {Variables} from 'RelayTypes';
 
 type Props = {
   cacheConfig?: ?CacheConfig,
-  environment: Environment,
+  environment: Environment | RelayClassicEnvironment,
   query: ?GraphQLTaggedNode,
   render: (
     readyState: ReadyState,
@@ -70,7 +70,11 @@ class ReactRelayQueryRenderer extends React.Component {
 
   constructor(props: Props, context: Object) {
     super(props, context);
-    let {environment, query, variables} = props;
+    let {query, variables} = props;
+    // TODO (#16225453) QueryRenderer works with old and new environment, but
+    // the flow typing doesn't quite work abstracted.
+    // $FlowFixMe
+    const environment: Environment = props.environment;
     let operation = null;
     if (query) {
       const {
@@ -103,14 +107,14 @@ class ReactRelayQueryRenderer extends React.Component {
         },
       };
     }
+
+    if (operation) {
+      this._fetch(operation, props.cacheConfig);
+    }
   }
 
   componentDidMount(): void {
     this._mounted = true;
-    const {cacheConfig} = this.props;
-    if (this._operation) {
-      this._fetch(this._operation, cacheConfig);
-    }
   }
 
   componentWillReceiveProps(nextProps: Props): void {
@@ -119,7 +123,11 @@ class ReactRelayQueryRenderer extends React.Component {
       nextProps.environment !== this.props.environment ||
       !areEqual(nextProps.variables, this.props.variables)
     ) {
-      const {environment, query, variables} = nextProps;
+      const {query, variables} = nextProps;
+      // TODO (#16225453) QueryRenderer works with old and new environment, but
+      // the flow typing doesn't quite work abstracted.
+      // $FlowFixMe
+      const environment: Environment = nextProps.environment;
       if (query) {
         const {
           createOperationSelector,

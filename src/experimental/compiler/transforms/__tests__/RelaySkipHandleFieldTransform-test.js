@@ -17,6 +17,7 @@ describe('RelaySkipHandleFieldTransform', () => {
   let RelaySkipHandleFieldTransform;
   let RelayTestSchema;
   let getGoldenMatchers;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
@@ -26,14 +27,15 @@ describe('RelaySkipHandleFieldTransform', () => {
     RelaySkipHandleFieldTransform = require('RelaySkipHandleFieldTransform');
     RelayTestSchema = require('RelayTestSchema');
     getGoldenMatchers = require('getGoldenMatchers');
+    parseGraphQLText = require('parseGraphQLText');
 
     jasmine.addMatchers(getGoldenMatchers(__filename));
   });
 
   it('removes field handles', () => {
     expect('fixtures/skip-handle-field-transform').toMatchGolden(text => {
-      let context = new RelayCompilerContext(RelayTestSchema);
-      context = context.parse(text).context;
+      const {definitions} = parseGraphQLText(RelayTestSchema, text);
+      let context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
       context = RelaySkipHandleFieldTransform.transform(context, RelayTestSchema);
       const documents = [];
       context.documents().forEach(doc => {

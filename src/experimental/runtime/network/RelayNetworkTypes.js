@@ -12,24 +12,14 @@
 
 'use strict';
 
+import type {CacheConfig, Disposable} from 'RelayCombinedEnvironmentTypes';
 import type {ConcreteBatch} from 'RelayConcreteNode';
 import type {
-  Disposable,
   HandleFieldPayload,
   MutableRecordSource,
   Observer,
 } from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';
-
-/**
- * Settings for how a query response may be cached.
- *
- * - `force`: causes a query to be issued unconditionally, irrespective of the
- *   state of any configured response cache.
- */
-export type CacheConfig = {
-  force: boolean,
-};
 
 /**
  * A cache for saving respones to queries (by id) and variables.
@@ -61,7 +51,7 @@ export type PayloadError = {
 
 /**
  * The shape of a GraphQL response as dictated by the
- * [spec](https://github.com/facebook/graphql/blob/master/spec/Section%207%20--%20Response.md)
+ * [spec](http://facebook.github.io/graphql/#sec-Response)
  */
 export type QueryPayload = {
   data: PayloadData,

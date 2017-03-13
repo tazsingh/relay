@@ -12,20 +12,14 @@
 
 'use strict';
 
-const GraphQL = require('graphql');
-const RelayParser = require('RelayParser');
-const RelayValidator = require('RelayValidator');
-
 const immutable = require('immutable');
 const invariant = require('invariant');
-
-const {getOperationDefinitionAST} = require('RelaySchemaUtils');
 
 import type {
   Fragment,
   Root,
 } from 'RelayIR';
-import type {DocumentNode, GraphQLSchema} from 'graphql';
+import type {GraphQLSchema} from 'graphql';
 
 const {
   List: ImmutableList,
@@ -38,16 +32,6 @@ const Document = Record({
   name: null,
   node: null,
 });
-
-type ContextAndNodes = $Exact<{
-  context: RelayCompilerContext,
-  nodes: Array<Root | Fragment>,
-}>;
-
-type ContextAndSchema = $Exact<{
-  context: RelayCompilerContext,
-  schema: GraphQLSchema,
-}>;
 
 /**
  * An immutable representation of a corpus of documents being compiled together.
@@ -69,63 +53,10 @@ class RelayCompilerContext {
     return this._documents.valueSeq().map(doc => doc.get('node')).toJS();
   }
 
-  parse(text: string): ContextAndNodes {
-    const ast = GraphQL.parse(text);
-    invariant(
-      ast.definitions.length,
-      'RelayCompilerContext: Expected GraphQL text to contain at least one ' +
-      'definition (fragment, mutation, query, subscription), got `%s`.',
-      text
-    );
-    return this.parseAST(ast);
-  }
-
-  parseAST(ast: DocumentNode): ContextAndNodes {
-    const contextAndSchema = this.extendSchema(ast);
-    let context = contextAndSchema.context;
-    const schema = contextAndSchema.schema;
-    try {
-      RelayValidator.validate(ast, schema, RelayValidator.LOCAL_RULES);
-    } catch (e) {
-      const errorMessages = [];
-      const text = ast.loc && ast.loc.source.body;
-      if (e.validationErrors && text) {
-        const sourceLines = text.split('\n');
-        e.validationErrors.forEach(function (formattedError) {
-          const {message, locations} = formattedError;
-          let errorMessage = message;
-          locations.forEach(function (location) {
-            var preview = sourceLines[location.line - 1];
-            if (preview) {
-              errorMessage += '\n' + [
-                '> ',
-                '> ' + preview,
-                '> ' + ' '.repeat(location.column - 1) + '^^^',
-              ].join('\n');
-            }
-          });
-          errorMessages.push(errorMessage);
-        });
-        invariant(
-          false,
-          'RelayCompilerContext: Encountered following errors while parsing.' +
-          ' \n %s',
-          errorMessages.join('\n')
-        );
-      } else {
-        throw e;
-      }
-    }
-    const nodes = [];
-    ast.definitions.forEach(definition => {
-      const operationDefinition = getOperationDefinitionAST(definition);
-      if (operationDefinition) {
-        const node = RelayParser.transform(schema, operationDefinition);
-        nodes.push(node);
-        context = context.add(node);
-      }
-    });
-    return {context, nodes};
+  updateSchema(schema: GraphQLSchema): RelayCompilerContext {
+    const context = new RelayCompilerContext(schema);
+    context._documents = this._documents;
+    return context;
   }
 
   add(node: Fragment | Root): RelayCompilerContext {
@@ -143,6 +74,13 @@ class RelayCompilerContext {
     );
   }
 
+  addAll(nodes: Array<Fragment | Root>): RelayCompilerContext {
+    return nodes.reduce(
+      (ctx: RelayCompilerContext, definition: Fragment | Root) => ctx.add(definition),
+      this,
+    );
+  }
+
   addError(name: string, error: Error): RelayCompilerContext {
     const record = this._get(name);
     let errors = record.get('errors');
@@ -154,16 +92,6 @@ class RelayCompilerContext {
     return this._update(
       this._documents.set(name, record.set('errors', errors))
     );
-  }
-
-  extendSchema(ast: DocumentNode): ContextAndSchema {
-    const schema = GraphQL.extendSchema(this.schema, ast);
-    let context = this; // eslint-disable-line consistent-this
-    if (schema !== this.schema) {
-      context = new RelayCompilerContext(schema);
-      context._documents = this._documents;
-    }
-    return {context, schema};
   }
 
   get(name: string): ?(Fragment | Root) {

@@ -204,11 +204,17 @@ const RelayStaticTestUtils = {
     text: string,
     schema?: ?GraphQLSchema,
   ): {[key: string]: ConcreteBatch | ConcreteFragment} {
+    const {transformASTSchema} = require('ASTConvert');
     const RelayCompiler = require('RelayCompiler');
+    const RelayCompilerContext = require('RelayCompilerContext');
     const RelayTestSchema = require('RelayTestSchema');
+    const parseGraphQLText = require('parseGraphQLText');
 
-    const compiler = new RelayCompiler(schema || RelayTestSchema);
-    compiler.add(text);
+    schema = schema || RelayTestSchema;
+    const relaySchema = transformASTSchema(schema);
+    const compiler = new RelayCompiler(schema, new RelayCompilerContext(relaySchema));
+
+    compiler.addDefinitions(parseGraphQLText(relaySchema, text).definitions);
     const documentMap = {};
     compiler.compile().forEach(node => {
       documentMap[node.name] = node;

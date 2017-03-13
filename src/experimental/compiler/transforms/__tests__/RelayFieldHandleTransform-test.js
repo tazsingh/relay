@@ -16,6 +16,7 @@ const RelayFieldHandleTransform = require('RelayFieldHandleTransform');
 const RelayPrinter = require('RelayPrinter');
 const RelayTestSchema = require('RelayTestSchema');
 const getGoldenMatchers = require('getGoldenMatchers');
+const parseGraphQLText = require('parseGraphQLText');
 
 describe('RelayFieldHandleTransform', () => {
   beforeEach(() => {
@@ -24,7 +25,8 @@ describe('RelayFieldHandleTransform', () => {
 
   it('matches expected output', () => {
     expect('fixtures/field-handle-transform').toMatchGolden(text => {
-      const context = new RelayCompilerContext(RelayTestSchema).parse(text).context;
+      const {definitions} = parseGraphQLText(RelayTestSchema, text);
+      const context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
       const nextContext = RelayFieldHandleTransform.transform(context);
       const documents = [];
       nextContext.documents().forEach(doc => {

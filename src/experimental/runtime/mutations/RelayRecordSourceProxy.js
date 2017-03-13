@@ -29,6 +29,7 @@ import type RelayRecordSourceMutator from 'RelayRecordSourceMutator';
 import type {HandlerProvider} from 'RelayStaticEnvironment';
 import type {
   RecordProxy,
+  RecordSourceProxy,
   Selector,
 } from 'RelayStoreTypes';
 
@@ -37,7 +38,7 @@ import type {
  *
  * A helper for manipulating a `RecordSource` via an imperative/OO-style API.
  */
-class RelayRecordSourceProxy {
+class RelayRecordSourceProxy implements RecordSourceProxy {
   _handlerProvider: ?HandlerProvider;
   _mutator: RelayRecordSourceMutator;
   _proxies: {[dataID: DataID]: ?RelayRecordProxy};

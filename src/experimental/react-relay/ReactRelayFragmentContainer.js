@@ -26,10 +26,12 @@ const {profileContainer} = require('ReactRelayContainerProfiler');
 const {getComponentName, getReactComponent} = require('RelayContainerUtils');
 
 import type {GeneratedNodeMap, RelayProp} from 'ReactRelayTypes';
+import type {
+  FragmentSpecResolver,
+} from 'RelayCombinedEnvironmentTypes';
 import type {GraphQLTaggedNode} from 'RelayStaticGraphQLTag';
 import type {
   FragmentMap,
-  FragmentSpecResolver,
   RelayContext,
 } from 'RelayStoreTypes';
 

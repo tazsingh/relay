@@ -18,14 +18,21 @@ const areEqual = require('areEqual');
 const getIdentifierForRelaySelection = require('getIdentifierForRelaySelection');
 const invariant = require('invariant');
 
+const {
+  GraphQLNonNull,
+  GraphQLList,
+} = require('graphql');
+
 import type {
   Field,
   Node,
   Root,
   ScalarField,
   Selection,
-  Type,
 } from 'RelayIR';
+import type {
+  GraphQLType as Type,
+} from 'graphql';
 
 const {getRawType, isAbstractType} = RelaySchemaUtils;
 
@@ -63,14 +70,14 @@ function transform(
   context: RelayCompilerContext,
   options?: FlattenOptions
 ): RelayCompilerContext {
-  options = {
+  const flattenOptions = {
     flattenAbstractTypes: !!(options && options.flattenAbstractTypes),
     flattenFragmentSpreads: !!(options && options.flattenFragmentSpreads),
     flattenInlineFragments: !!(options && options.flattenInlineFragments),
     flattenConditions: !!(options && options.flattenConditions),
   };
   return context.documents().reduce((ctx, node) => {
-    if (options.flattenFragmentSpreads && node.kind === 'Fragment') {
+    if (flattenOptions.flattenFragmentSpreads && node.kind === 'Fragment') {
       return ctx;
     }
     const state = {
@@ -79,7 +86,7 @@ function transform(
       selections: {},
       type: node.type,
     };
-    visitNode(context, options, state, node);
+    visitNode(context, flattenOptions, state, node);
     const flattenedNode = buildNode(state);
     invariant(
       flattenedNode.kind === 'Root' || flattenedNode.kind === 'Fragment',
@@ -252,8 +259,14 @@ function shouldFlattenFragment(
   options: FlattenOptions,
   state: FlattenState
 ): boolean {
+  // Right now, both the fragment's and state's types could be undefined.
+  if (!fragment.typeCondition) {
+    return !state.type;
+  } else if (!state.type) {
+    return false;
+  }
   return (
-    fragment.typeCondition === state.type ||
+    isEquivalentType(fragment.typeCondition, state.type) ||
     options.flattenInlineFragments ||
     (
       options.flattenAbstractTypes &&
@@ -299,6 +312,43 @@ function dedupe(...arrays: Array<?Array<string>>): Array<string> {
     });
   });
   return Array.from(uniqueItems.values());
+}
+
+/**
+ *
+ * @internal
+ * Determine if a type is the same type (same name and class) as another type.
+ * Needed if we're comparing IRs created at different times: we don't yet have
+ * an IR schema, so the type we assign to an IR field could be !== than
+ * what we assign to it after adding some schema definitions or extensions.
+ */
+function isEquivalentType(typeA: GraphQLType, typeB: GraphQLType): boolean {
+  // Easy short-circuit: equal types are equal.
+  if (typeA === typeB) {
+    return true;
+  }
+
+  // If either type is non-null, the other must also be non-null.
+  if (typeA instanceof GraphQLNonNull && typeB instanceof GraphQLNonNull) {
+    return isEquivalentType(typeA.ofType, typeB.ofType);
+  }
+
+  // If either type is a list, the other must also be a list.
+  if (typeA instanceof GraphQLList && typeB instanceof GraphQLList) {
+    return isEquivalentType(typeA.ofType, typeB.ofType);
+  }
+
+  // Make sure the two types are of the same class
+  if (typeA.constructor.name === typeB.constructor.name) {
+    const rawA = getRawType(typeA);
+    const rawB = getRawType(typeB);
+
+    // And they must have the exact same name
+    return rawA.name === rawB.name;
+  }
+
+  // Otherwise the types are not equal.
+  return false;
 }
 
 module.exports = {transform};

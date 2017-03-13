@@ -20,11 +20,15 @@ const {areEqualSelectors, getSelectorsFromObject} = require('RelayStaticSelector
 
 import type {
   Disposable,
+  FragmentSpecResolver,
+  FragmentSpecResults,
+  SelectorData,
+} from 'RelayCombinedEnvironmentTypes';
+import type {
   Environment,
   FragmentMap,
   RelayContext,
   Selector,
-  SelectorData,
   Snapshot,
 } from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';
@@ -51,7 +55,7 @@ type Resolvers = {[key: string]: ?(SelectorListResolver | SelectorResolver)};
  * the resolver as stale and notify the caller, and the actual results are
  * recomputed the first time `resolve()` is called.
  */
-class RelayStaticFragmentSpecResolver {
+class RelayStaticFragmentSpecResolver implements FragmentSpecResolver {
   _callback: () => void;
   _context: RelayContext;
   _data: Object;
@@ -81,7 +85,7 @@ class RelayStaticFragmentSpecResolver {
     forEachObject(this._resolvers, disposeCallback);
   }
 
-  resolve(): {[key: string]: mixed} {
+  resolve(): FragmentSpecResults {
     if (this._stale) {
       // Avoid mapping the object multiple times, which could occur if data for
       // multiple keys changes in the same event loop.

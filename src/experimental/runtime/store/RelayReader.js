@@ -19,6 +19,9 @@ const RelayStoreUtils = require('RelayStoreUtils');
 const invariant = require('invariant');
 
 import type {
+  SelectorData,
+} from 'RelayCombinedEnvironmentTypes';
+import type {
   ConcreteFragmentSpread,
   ConcreteLinkedField,
   ConcreteNode,
@@ -31,7 +34,6 @@ import type {
   Record,
   RecordSource,
   Selector,
-  SelectorData,
   Snapshot,
 } from 'RelayStoreTypes';
 import type {Variables} from 'RelayTypes';

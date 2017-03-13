@@ -17,6 +17,7 @@ describe('RelayViewerHandleTransform', () => {
   let RelayViewerHandleTransform;
   let RelayTestSchema;
   let getGoldenMatchers;
+  let parseGraphQLText;
 
   beforeEach(() => {
     jest.resetModules();
@@ -26,14 +27,15 @@ describe('RelayViewerHandleTransform', () => {
     RelayViewerHandleTransform = require('RelayViewerHandleTransform');
     RelayTestSchema = require('RelayTestSchema');
     getGoldenMatchers = require('getGoldenMatchers');
+    parseGraphQLText = require('parseGraphQLText');
 
     jasmine.addMatchers(getGoldenMatchers(__filename));
   });
 
   it('adds a handle to viewer fields', () => {
     expect('fixtures/viewer-handle-transform').toMatchGolden(text => {
-      let context = new RelayCompilerContext(RelayTestSchema);
-      context = context.parse(text).context;
+      const {definitions} = parseGraphQLText(RelayTestSchema, text);
+      let context = (new RelayCompilerContext(RelayTestSchema)).addAll(definitions);
       context = RelayViewerHandleTransform.transform(context, RelayTestSchema);
       const documents = [];
       context.documents().forEach(doc => {

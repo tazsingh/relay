@@ -29,7 +29,7 @@ import type {Variables} from 'RelayTypes';
  * A helper class for manipulating a given record from a record source via an
  * imperative/OO-style API.
  */
-class RelayRecordProxy {
+class RelayRecordProxy implements RecordProxy {
   _dataID: DataID;
   _mutator: RelayRecordSourceMutator;
   _source: RelayRecordSourceProxy;
@@ -67,7 +67,7 @@ class RelayRecordProxy {
     return this._mutator.getValue(this._dataID, storageKey);
   }
 
-  setValue(value: mixed, name: string, args?: ?Variables): void {
+  setValue(value: mixed, name: string, args?: ?Variables): RecordProxy {
     invariant(
       value == null || typeof value !== 'object',
       'RelayRecordProxy#setValue(): Expected a scalar value, got `%s`.',
@@ -75,6 +75,7 @@ class RelayRecordProxy {
     );
     const storageKey = args ? formatStorageKey(name, args) : name;
     this._mutator.setValue(this._dataID, storageKey, value);
+    return this;
   }
 
   getLinkedRecord(name: string, args?: ?Variables): ?RecordProxy {
@@ -85,7 +86,7 @@ class RelayRecordProxy {
       linkedID;
   }
 
-  setLinkedRecord(record: RecordProxy, name: string, args?: ?Variables): void {
+  setLinkedRecord(record: RecordProxy, name: string, args?: ?Variables): RecordProxy {
     invariant(
       record instanceof RelayRecordProxy,
       'RelayRecordProxy#setLinkedRecord(): Expected a record, got `%s`.',
@@ -94,6 +95,7 @@ class RelayRecordProxy {
     const storageKey = args ? formatStorageKey(name, args) : name;
     const linkedID = record.getDataID();
     this._mutator.setLinkedRecordID(this._dataID, storageKey, linkedID);
+    return this;
   }
 
   getOrCreateLinkedRecord(name: string, typeName: string, args?: ?Variables): RecordProxy {
@@ -120,7 +122,7 @@ class RelayRecordProxy {
     });
   }
 
-  setLinkedRecords(records: Array<?RecordProxy>, name: string, args?: ?Variables): void {
+  setLinkedRecords(records: Array<?RecordProxy>, name: string, args?: ?Variables): RecordProxy {
     invariant(
       Array.isArray(records),
       'RelayRecordProxy#setLinkedRecords(): Expected records to be an array, got `%s`.',
@@ -129,6 +131,7 @@ class RelayRecordProxy {
     const storageKey = args ? formatStorageKey(name, args) : name;
     const linkedIDs = records.map(record => record && record.getDataID());
     this._mutator.setLinkedRecordIDs(this._dataID, storageKey, linkedIDs);
+    return this;
   }
 }
 
