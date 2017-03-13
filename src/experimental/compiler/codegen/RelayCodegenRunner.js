@@ -9,7 +9,6 @@
 
 const RelayCodegenWatcher = require('RelayCodegenWatcher');
 const RelayFileIRParser = require('RelayFileIRParser');
-const RelayFileWriter = require('RelayFileWriter');
 
 const fs = require('fs');
 const invariant = require('invariant');
@@ -19,6 +18,7 @@ const {Map: ImmutableMap} = require('immutable');
 
 import type FileParser from 'FileParser';
 import type {FileFilter, WatchmanExpression} from 'RelayCodegenWatcher';
+import type RelayFileWriter from 'RelayFileWriter';
 import type {DocumentNode, GraphQLSchema} from 'graphql';
 
 /* eslint-disable no-console-disallow */

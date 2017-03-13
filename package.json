@@ -29,7 +29,10 @@
     "update-schema": "babel-node ./scripts/jest/updateSchema.js"
   },
   "dependencies": {
+    "babel-generator": "6.24.0",
     "babel-runtime": "^6.6.1",
+    "babel-traverse": "6.23.1",
+    "babel-types": "6.23.0",
     "babylon": "6.16.1",
     "fb-watchman": "^2.0.0",
     "fbjs": "^0.8.1",
